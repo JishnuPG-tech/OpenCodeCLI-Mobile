@@ -652,7 +652,7 @@ async def run_bot_async() -> None:
             logger.info("Bot handlers registered. Waiting for webhook updates.")
             return
 
-        # Render / local: normal initialization with outbound HTTP
+        # Render / local: normal initialization with outbound HTTP + polling
         logger.info("Initializing Telegram bot application...")
         await telegram_app.initialize()
         try:
@@ -661,23 +661,11 @@ async def run_bot_async() -> None:
             pass
         logger.info("Starting Telegram bot application...")
         await telegram_app.start()
-
-        render_url = os.getenv("RENDER_EXTERNAL_URL")
-        if render_url:
-            webhook_url = f"{render_url.rstrip('/')}/api/telegram-webhook"
-            logger.info(f"Setting Telegram webhook: {webhook_url}")
-            await telegram_app.bot.set_webhook(
-                url=webhook_url,
-                allowed_updates=Update.ALL_TYPES,
-                drop_pending_updates=True,
-            )
-            logger.info("Webhook set successfully!")
-        else:
-            logger.info("No public URL found — starting polling mode.")
-            await telegram_app.updater.start_polling(
-                allowed_updates=Update.ALL_TYPES,
-                drop_pending_updates=True,
-            )
+        logger.info("Starting Telegram bot polling...")
+        await telegram_app.updater.start_polling(
+            allowed_updates=Update.ALL_TYPES,
+            drop_pending_updates=True,
+        )
         logger.info("Telegram bot is running!")
     except Exception as e:
         logger.error(f"FATAL ERROR starting Telegram bot: {e}", exc_info=True)
