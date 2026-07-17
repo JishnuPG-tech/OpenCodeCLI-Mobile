@@ -56,7 +56,8 @@ export function useSession(id: string) {
 export function useCreateSession() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: api.createSession,
+    mutationFn: (options?: { title?: string; agent?: string; model?: string }) =>
+      api.createSession(options),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["sessions"] }),
   });
 }

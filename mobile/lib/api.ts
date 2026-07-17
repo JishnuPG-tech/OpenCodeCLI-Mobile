@@ -6,6 +6,7 @@ import type {
   SessionStatus,
   SessionListResponse,
   Message,
+  MessagePart,
   OpenCodeConfig,
   Provider,
   Model,
@@ -139,7 +140,7 @@ export function getSessionStatus(id: string): Promise<SessionStatus> {
 }
 
 export function getSessionChildren(id: string): Promise<Session[]> {
-  return request(`/session/${id}/children`).catch(() => []);
+  return request<Session[]>(`/session/${id}/children`).catch(() => []);
 }
 
 export function getSessionTodos(id: string): Promise<Todo[]> {

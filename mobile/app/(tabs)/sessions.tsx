@@ -22,7 +22,7 @@ export default function SessionsScreen() {
 
   const handleCreate = async () => {
     try {
-      const session = await createSession.mutateAsync();
+      const session = await createSession.mutateAsync({ title: "New Chat" });
       router.push(`/session/${session.id}`);
     } catch {}
   };
@@ -77,7 +77,7 @@ export default function SessionsScreen() {
                 {item.title || "Untitled"}
               </Text>
               <Text style={[styles.sessionDate, { color: theme.colors.textMuted }]}>
-                {new Date(item.updated_at).toLocaleString()}
+                {new Date(item.updatedAt).toLocaleString()}
               </Text>
             </View>
             <TouchableOpacity onPress={() => handleDelete(item.id, item.title)}>

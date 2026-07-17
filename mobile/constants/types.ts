@@ -377,3 +377,28 @@ export interface SessionContext {
 export interface SessionHistory {
   messages: Message[];
 }
+
+// ── Theme ──
+export type ThemeName = "tokyo" | "dracula" | "nord" | "gruvbox" | "onedark" | "catppuccin";
+
+export interface Theme {
+  name: ThemeName;
+  label: string;
+  colors: {
+    bg: string;
+    bgSecondary: string;
+    bgTertiary: string;
+    surface: string;
+    border: string;
+    text: string;
+    textSecondary: string;
+    textMuted: string;
+    primary: string;
+    primaryText: string;
+    secondary: string;
+    danger: string;
+    success: string;
+    warning: string;
+    accent: string;
+  };
+}

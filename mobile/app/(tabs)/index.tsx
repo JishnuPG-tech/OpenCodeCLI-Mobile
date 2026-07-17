@@ -17,7 +17,7 @@ export default function HomeScreen() {
 
   const handleNewSession = async () => {
     try {
-      const session = await createSession.mutateAsync();
+      const session = await createSession.mutateAsync({ title: "New Chat" });
       router.push(`/session/${session.id}`);
     } catch {}
   };

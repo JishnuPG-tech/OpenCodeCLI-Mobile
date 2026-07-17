@@ -8,7 +8,7 @@ interface MarkdownRendererProps {
   content: string;
 }
 
-const codeStyle = (theme: ReturnType<typeof themes[string]>) =>
+const codeStyle = (theme: { colors: Record<string, string> }) =>
   StyleSheet.create({
     body: {},
     heading1: { fontSize: 22, fontWeight: "700", color: theme.colors.text, marginTop: 16, marginBottom: 8 },

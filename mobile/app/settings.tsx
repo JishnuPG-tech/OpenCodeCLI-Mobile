@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useState, useEffect } from "react";
 import { ArrowLeft, Check, Shield, Globe, Key, Lock } from "lucide-react-native";
-import { getHealth } from "../../lib/api";
+import { getHealth } from "../lib/api";
 import {
   getServerUrl,
   setServerUrl as persistUrl,
@@ -14,10 +14,10 @@ import {
   clearAuth,
   getTheme,
   setTheme as persistTheme,
-} from "../../lib/storage";
-import type { AuthType } from "../../lib/storage";
-import { themes } from "../../constants/themes";
-import { ThemeName } from "../../constants/types";
+} from "../lib/storage";
+import type { AuthType } from "../lib/storage";
+import { themes } from "../constants/themes";
+import { ThemeName } from "../constants/types";
 
 const themeNames = Object.keys(themes) as ThemeName[];
 
