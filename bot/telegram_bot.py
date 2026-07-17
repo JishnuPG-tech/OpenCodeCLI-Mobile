@@ -151,7 +151,7 @@ async def download_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Error transferring file: {e}")
 
 
-def clean_terminal_output(text: str) -> tuple[str, bool]:
+def clean_terminal_output(text: str, keep_whitespace: bool = False) -> tuple[str, bool]:
     """Strips ANSI sequences and extracts Google login links into a clean layout."""
     # 1. Look for Google OAuth URL
     match = re.search(r'https://accounts\.google\.com/o/oauth2/auth\?[^\s\'"\x1b\\>]+', text)
@@ -169,16 +169,19 @@ def clean_terminal_output(text: str) -> tuple[str, bool]:
     cleaned = re.sub(r'\x1b\]8;[^\x1b\x07]*[\x1b\x07]', '', text)
     cleaned = re.sub(r'\x1b\[[0-9;?]*[a-zA-Z]', '', cleaned)
     cleaned = re.sub(r'\x1b.', '', cleaned)
-    cleaned = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', cleaned)
+    if keep_whitespace:
+        cleaned = re.sub(r'[\x00-\x09\x0b\x0c\x0e-\x1f\x7f]', '', cleaned)
+    else:
+        cleaned = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', cleaned)
     
     # 3. Strip bracketed paste and leftover truncated CSI commands
     cleaned = cleaned.replace("[?2004l", "").replace("[?2004h", "")
     cleaned = re.sub(r'\[[0-9;?]*[mJKhHdDL]', '', cleaned)
     
-    cleaned = cleaned.strip()
-    
-    if cleaned in [']', '', ']', ']];', ';', 'm', 'm ]8;;']:
-        return "", False
+    if not keep_whitespace:
+        cleaned = cleaned.strip()
+        if cleaned in [']', '', ']', ']];', ';', 'm', 'm ]8;;']:
+            return "", False
         
     return cleaned, False
 
