@@ -45,7 +45,7 @@ class SessionManager:
             # Set window size to 100x40 to prevent TUI menu clipping
             subprocess.run(["tmux", "resize-window", "-t", session, "-x", "100", "-y", "40"], check=False)
             # start `opencode` inside tmux (it will self-update/run)
-            subprocess.run(["tmux", "send-keys", "-t", session, "opencode", "Enter"])
+            # subprocess.run(["tmux", "send-keys", "-t", session, "opencode", "Enter"])
 
             # set up a tmux pipe-pane to write session output to a log file for streaming
             log_path = os.path.join(ws, ".opencode_output.log")
@@ -91,7 +91,7 @@ class SessionManager:
         try:
             while True:
                 if not os.path.exists(log_path):
-                    await asyncio.sleep(0.5)
+                    await asyncio.sleep(0.1)
                     continue
                 with open(log_path, "r", errors="replace") as f:
                     f.seek(pos)
@@ -99,7 +99,8 @@ class SessionManager:
                     if data:
                         pos = f.tell()
                         yield data
-                await asyncio.sleep(0.4)
+                        continue
+                await asyncio.sleep(0.01)
         except asyncio.CancelledError:
             return
 
