@@ -170,7 +170,7 @@ def clean_terminal_output(text: str, keep_whitespace: bool = False) -> tuple[str
     cleaned = re.sub(r'\x1b\[[0-9;?]*[a-zA-Z]', '', cleaned)
     cleaned = re.sub(r'\x1b.', '', cleaned)
     if keep_whitespace:
-        cleaned = re.sub(r'[\x00-\x09\x0b\x0c\x0e-\x1f\x7f]', '', cleaned)
+        cleaned = re.sub(r'[\x00-\x07\x09\x0b\x0c\x0e-\x1f\x7f]', '', cleaned)
     else:
         cleaned = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', cleaned)
     
