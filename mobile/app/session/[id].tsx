@@ -2,10 +2,14 @@ import { View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useState, useEffect, useRef } from "react";
-import { ArrowLeft, Send, Loader, Wrench } from "lucide-react-native";
-import { useMessages, useSession } from "../../hooks/useApi";
-import { useSSE } from "../../hooks/useSSE";
-import { Message, MessagePart } from "../../lib/api";
+import { ArrowLeft, Send, Loader, AlertTriangle } from "lucide-react-native";
+import { useMessages, useSession, useSendMessage, useReplyPermission, useReplyQuestion } from "../../hooks/useApi";
+import { useSSE, getMessagesFromEvents } from "../../hooks/useSSE";
+import { MarkdownRenderer } from "../../components/MarkdownRenderer";
+import { ToolTimeline } from "../../components/ToolTimeline";
+import { PermissionCard } from "../../components/PermissionCard";
+import { QuestionCard } from "../../components/QuestionCard";
+import { Message, MessagePart, ToolPart, PermissionRequest, QuestionRequest } from "../../constants/types";
 import { getTheme } from "../../lib/storage";
 import { themes } from "../../constants/themes";
 
@@ -19,46 +23,104 @@ export default function ChatScreen() {
 
   const { data: session } = useSession(id || "");
   const { data: serverMessages } = useMessages(id || "");
-  const { send, streaming, parts: streamParts, error } = useSSE();
+  const { connect, disconnect, streaming, events, error } = useSSE(id);
+  const sendMessage = useSendMessage();
+  const replyPermission = useReplyPermission();
+  const replyQuestion = useReplyQuestion();
 
-  const allMessages: Message[] = [...(serverMessages || [])];
+  // Build messages from server + SSE events
+  const sseMessages = getMessagesFromEvents(events);
+  const allMessages: Message[] = [...(serverMessages || []), ...sseMessages];
+
+  // Deduplicate by id
+  const seen = new Set<string>();
+  const uniqueMessages = allMessages.filter((m) => {
+    if (seen.has(m.id)) return false;
+    seen.add(m.id);
+    return true;
+  });
+
+  // Collect pending permissions and questions
+  const pendingPermissions: PermissionRequest[] = [];
+  const pendingQuestions: QuestionRequest[] = [];
+  for (const ev of events) {
+    if (ev.type === "permission.requested") {
+      const perm = ev.properties as PermissionRequest;
+      if (perm.state === "pending") pendingPermissions.push(perm);
+    }
+    if (ev.type === "question.asked") {
+      const q = ev.properties as QuestionRequest;
+      if (q.state === "pending") pendingQuestions.push(q);
+    }
+  }
+
+  useEffect(() => {
+    connect();
+    return () => disconnect();
+  }, [id]);
 
   const handleSend = () => {
     if (!input.trim() || !id) return;
-    send(id, input.trim());
+    sendMessage.mutate({ sessionId: id, content: input.trim() });
     setInput("");
   };
 
   useEffect(() => {
-    if (streamParts.length > 0) {
-      flatListRef.current?.scrollToEnd({ animated: true });
+    if (uniqueMessages.length > 0 || events.length > 0) {
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
     }
-  }, [streamParts.length]);
+  }, [uniqueMessages.length, events.length]);
 
   const renderPart = (part: MessagePart, index: number) => {
     if (part.type === "text" && part.text) {
+      return <MarkdownRenderer key={index} content={part.text} />;
+    }
+    if (part.type === "tool") {
+      const toolPart = part as ToolPart;
       return (
-        <Text key={index} style={[styles.messageText, { color: theme.colors.text }]}>
-          {part.text}
-        </Text>
+        <ToolTimeline
+          key={toolPart.callID || index}
+          parts={[toolPart]}
+        />
       );
     }
-    if (part.type === "tool-invocation" && part.toolInvocation) {
-      const { toolName, state } = part.toolInvocation;
+    if (part.type === "reasoning") {
       return (
-        <View
-          key={index}
-          style={[styles.toolCard, { backgroundColor: theme.colors.bgTertiary, borderColor: theme.colors.border }]}
-        >
-          <View style={styles.toolHeader}>
-            <Wrench size={14} color={theme.colors.secondary} />
-            <Text style={[styles.toolName, { color: theme.colors.secondary }]}>{toolName}</Text>
-            {state === "call" && <Loader size={12} color={theme.colors.textMuted} />}
-          </View>
+        <View key={index} style={[styles.reasoning, { backgroundColor: theme.colors.bgTertiary, borderColor: theme.colors.border }]}>
+          <Text style={[styles.reasoningLabel, { color: theme.colors.textMuted }]}>Thinking...</Text>
+          <Text style={[styles.reasoningText, { color: theme.colors.textMuted }]} numberOfLines={3}>
+            {part.text}
+          </Text>
         </View>
       );
     }
     return null;
+  };
+
+  const renderMessage = (item: Message) => {
+    const isUser = item.role === "user";
+
+    // Group consecutive tool parts
+    const toolParts: ToolPart[] = [];
+    const otherParts: MessagePart[] = [];
+    for (const part of item.parts) {
+      if (part.type === "tool") toolParts.push(part as ToolPart);
+      else otherParts.push(part);
+    }
+
+    return (
+      <View
+        style={[
+          styles.bubble,
+          isUser
+            ? { backgroundColor: theme.colors.primary, alignSelf: "flex-end", maxWidth: "85%" }
+            : { backgroundColor: theme.colors.surface, alignSelf: "flex-start", maxWidth: "90%" },
+        ]}
+      >
+        {otherParts.map((part, i) => renderPart(part, i))}
+        {toolParts.length > 0 && <ToolTimeline parts={toolParts} />}
+      </View>
+    );
   };
 
   return (
@@ -78,41 +140,51 @@ export default function ChatScreen() {
 
       <FlatList
         ref={flatListRef}
-        data={allMessages}
+        data={uniqueMessages}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ padding: 20, paddingBottom: 20, gap: 12 }}
         showsVerticalScrollIndicator={false}
         onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-        renderItem={({ item }) => (
-          <View
-            style={[
-              styles.bubble,
-              item.role === "user"
-                ? { backgroundColor: theme.colors.primary, alignSelf: "flex-end", maxWidth: "80%" }
-                : { backgroundColor: theme.colors.surface, alignSelf: "flex-start" },
-            ]}
-          >
-            {item.parts.map((part, i) => renderPart(part, i))}
-          </View>
-        )}
+        renderItem={({ item }) => renderMessage(item)}
         ListFooterComponent={
-          streamParts.length > 0 ? (
-            <View style={[styles.bubble, { backgroundColor: theme.colors.surface, alignSelf: "flex-start" }]}>
-              {streamParts.map((part, i) => renderPart(part, i))}
-            </View>
-          ) : streaming ? (
-            <View style={[styles.bubble, { backgroundColor: theme.colors.surface, alignSelf: "flex-start" }]}>
-              <View style={styles.typing}>
-                <Loader size={14} color={theme.colors.textMuted} />
-                <Text style={[styles.typingText, { color: theme.colors.textMuted }]}>Thinking...</Text>
+          <>
+            {/* Pending permissions */}
+            {pendingPermissions.map((perm) => (
+              <PermissionCard
+                key={perm.id}
+                request={perm}
+                onAllow={() => replyPermission.mutate({ sessionId: id!, requestId: perm.id, allow: true })}
+                onDeny={() => replyPermission.mutate({ sessionId: id!, requestId: perm.id, allow: false })}
+              />
+            ))}
+
+            {/* Pending questions */}
+            {pendingQuestions.map((q) => (
+              <QuestionCard
+                key={q.id}
+                request={q}
+                onReply={(answer) => replyQuestion.mutate({ sessionId: id!, requestId: q.id, answer })}
+              />
+            ))}
+
+            {/* Streaming indicator */}
+            {streaming && (
+              <View style={[styles.bubble, { backgroundColor: theme.colors.surface, alignSelf: "flex-start" }]}>
+                <View style={styles.typing}>
+                  <Loader size={14} color={theme.colors.textMuted} />
+                  <Text style={[styles.typingText, { color: theme.colors.textMuted }]}>Thinking...</Text>
+                </View>
               </View>
-            </View>
-          ) : null
+            )}
+          </>
         }
       />
 
       {error && (
-        <Text style={[styles.error, { color: theme.colors.danger }]}>{error}</Text>
+        <View style={[styles.errorBar, { backgroundColor: theme.colors.danger }]}>
+          <AlertTriangle size={14} color="#fff" />
+          <Text style={[styles.errorText, { color: "#fff" }]}>{error}</Text>
+        </View>
       )}
 
       <View style={[styles.inputBar, { borderTopColor: theme.colors.border, backgroundColor: theme.colors.bgSecondary, paddingBottom: insets.bottom + 8 }]}>
@@ -153,19 +225,25 @@ const styles = StyleSheet.create({
   bubble: {
     padding: 14,
     borderRadius: 14,
-    maxWidth: "85%",
   },
-  messageText: { fontSize: 15, lineHeight: 22 },
-  toolCard: {
+  reasoning: {
     padding: 10,
     borderRadius: 8,
     borderWidth: 1,
+    marginTop: 4,
   },
-  toolHeader: { flexDirection: "row", alignItems: "center", gap: 6 },
-  toolName: { fontSize: 13, fontWeight: "600" },
+  reasoningLabel: { fontSize: 11, fontWeight: "600", textTransform: "uppercase", marginBottom: 4 },
+  reasoningText: { fontSize: 12, lineHeight: 18, fontStyle: "italic" },
   typing: { flexDirection: "row", alignItems: "center", gap: 6 },
   typingText: { fontSize: 14 },
-  error: { fontSize: 13, textAlign: "center", paddingVertical: 4 },
+  errorBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  errorText: { fontSize: 13, flex: 1 },
   inputBar: {
     flexDirection: "row",
     alignItems: "flex-end",

@@ -2,7 +2,7 @@ import { View, Text, TextInput, FlatList, StyleSheet } from "react-native";
 import { useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Search as SearchIcon } from "lucide-react-native";
-import { useSearch } from "../../hooks/useApi";
+import { useFindFiles } from "../../hooks/useApi";
 import { getTheme } from "../../lib/storage";
 import { themes } from "../../constants/themes";
 
@@ -10,7 +10,7 @@ export default function SearchScreen() {
   const insets = useSafeAreaInsets();
   const theme = themes[getTheme()];
   const [query, setQuery] = useState("");
-  const { data: results, isLoading } = useSearch(query);
+  const { data: results, isLoading } = useFindFiles(query);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.bg }]}>

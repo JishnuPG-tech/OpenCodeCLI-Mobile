@@ -2,7 +2,7 @@ import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet } from "r
 import { useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Search, ChevronRight, Folder, File, ArrowLeft } from "lucide-react-native";
-import { useFiles } from "../../hooks/useApi";
+import { useListFiles } from "../../hooks/useApi";
 import { getTheme } from "../../lib/storage";
 import { themes } from "../../constants/themes";
 
@@ -11,7 +11,7 @@ export default function FilesScreen() {
   const theme = themes[getTheme()];
   const [currentDir, setCurrentDir] = useState(".");
   const [search, setSearch] = useState("");
-  const { data: files, isLoading } = useFiles(currentDir);
+  const { data: files, isLoading } = useListFiles(currentDir);
 
   const filtered = (files || []).filter(
     (f) => !search || f.name.toLowerCase().includes(search.toLowerCase())

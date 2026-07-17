@@ -1,8 +1,9 @@
-import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Plus, Wifi, WifiOff, Settings } from "lucide-react-native";
-import { useServerStatus, useSessions, useCreateSession, useProjects } from "../../hooks/useApi";
+import { useSessions, useCreateSession } from "../../hooks/useApi";
+import { useConnection } from "../../hooks/useConnection";
 import { getTheme } from "../../lib/storage";
 import { themes } from "../../constants/themes";
 
@@ -10,9 +11,8 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const theme = themes[getTheme()];
-  const { data: status } = useServerStatus();
+  const { isConnected, state: connState } = useConnection();
   const { data: sessions } = useSessions();
-  const { data: projects } = useProjects();
   const createSession = useCreateSession();
 
   const handleNewSession = async () => {
@@ -42,18 +42,18 @@ export default function HomeScreen() {
           style={[
             styles.statusCard,
             {
-              backgroundColor: status?.connected ? theme.colors.bgTertiary : theme.colors.surface,
-              borderColor: status?.connected ? theme.colors.success : theme.colors.danger,
+              backgroundColor: isConnected ? theme.colors.bgTertiary : theme.colors.surface,
+              borderColor: isConnected ? theme.colors.success : theme.colors.danger,
             },
           ]}
         >
-          {status?.connected ? (
+          {isConnected ? (
             <Wifi size={18} color={theme.colors.success} />
           ) : (
             <WifiOff size={18} color={theme.colors.danger} />
           )}
           <Text style={[styles.statusText, { color: theme.colors.text }]}>
-            {status?.connected ? "Connected" : "Disconnected"}
+            {isConnected ? "Connected" : connState === "reconnecting" ? "Reconnecting..." : "Disconnected"}
           </Text>
         </View>
 
@@ -83,30 +83,9 @@ export default function HomeScreen() {
                   {s.title || "Untitled"}
                 </Text>
                 <Text style={[styles.sessionTime, { color: theme.colors.textMuted }]}>
-                  {new Date(s.updated_at).toLocaleDateString()}
+                  {new Date(s.updatedAt).toLocaleDateString()}
                 </Text>
               </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        {(projects || []).length > 0 && (
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>
-              Projects
-            </Text>
-            {projects?.map((p) => (
-              <View
-                key={p.path}
-                style={[styles.projectItem, { backgroundColor: theme.colors.surface }]}
-              >
-                <Text style={[styles.projectName, { color: theme.colors.text }]} numberOfLines={1}>
-                  {p.name}
-                </Text>
-                <Text style={[styles.projectPath, { color: theme.colors.textMuted }]} numberOfLines={1}>
-                  {p.path}
-                </Text>
-              </View>
             ))}
           </View>
         )}
@@ -158,7 +137,4 @@ const styles = StyleSheet.create({
   },
   sessionTitle: { fontSize: 15, fontWeight: "500", flex: 1, marginRight: 10 },
   sessionTime: { fontSize: 12 },
-  projectItem: { padding: 14, borderRadius: 10, marginBottom: 6 },
-  projectName: { fontSize: 15, fontWeight: "500" },
-  projectPath: { fontSize: 12, marginTop: 2 },
 });
