@@ -1,5 +1,4 @@
 import { getHealth, subscribeEvents, parseSSELines } from "./api";
-import { getServerUrl, getCredentials } from "./storage";
 import type { ServerEvent } from "../constants/types";
 
 export type ConnectionState =

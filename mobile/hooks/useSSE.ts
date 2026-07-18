@@ -20,14 +20,19 @@ export function useSSE(sessionId?: string) {
   const abortRef = useRef<AbortController | null>(null);
   const bufferRef = useRef("");
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
+  const retryCountRef = useRef(0);
 
   const connect = useCallback(async () => {
-    setState((s) => ({ ...s, error: null }));
+    if (!mountedRef.current) return;
+    setState((s) => ({ ...s, error: null, connected: false, streaming: true }));
 
     try {
       const response = await subscribeEvents(sessionId);
+      if (!mountedRef.current) return;
       abortRef.current = new AbortController();
-      setState((s) => ({ ...s, connected: true, streaming: true }));
+      retryCountRef.current = 0;
+      setState((s) => ({ ...s, connected: true, streaming: true, error: null }));
 
       const reader = response.body?.getReader();
       if (!reader) throw new Error("No readable stream");
@@ -36,7 +41,7 @@ export function useSSE(sessionId?: string) {
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done || !mountedRef.current) break;
 
         bufferRef.current += decoder.decode(value, { stream: true });
         const { events, remaining } = parseSSELines(bufferRef.current);
@@ -50,23 +55,29 @@ export function useSSE(sessionId?: string) {
         }
       }
 
-      setState((s) => ({ ...s, connected: false, streaming: false }));
-    } catch (err: unknown) {
-      if (err instanceof Error && err.name !== "AbortError") {
-        setState((s) => ({
-          ...s,
-          connected: false,
-          streaming: false,
-          error: err.message,
-        }));
+      if (mountedRef.current) {
+        setState((s) => ({ ...s, connected: false, streaming: false }));
       }
+    } catch (err: unknown) {
+      if (!mountedRef.current) return;
+      if (err instanceof Error && err.name === "AbortError") return;
+
+      const msg = err instanceof Error ? err.message : "Connection failed";
+      setState((s) => ({
+        ...s,
+        connected: false,
+        streaming: false,
+        error: msg,
+      }));
     }
   }, [sessionId]);
 
   const disconnect = useCallback(() => {
+    mountedRef.current = false;
     abortRef.current?.abort();
     if (reconnectTimer.current) {
       clearTimeout(reconnectTimer.current);
+      reconnectTimer.current = null;
     }
     setState({ connected: false, streaming: false, error: null, events: [] });
   }, []);
@@ -75,22 +86,13 @@ export function useSSE(sessionId?: string) {
     setState((s) => ({ ...s, events: [] }));
   }, []);
 
-  // Auto-reconnect on disconnect
-  useEffect(() => {
-    if (!state.connected && !state.streaming && sessionId) {
-      reconnectTimer.current = setTimeout(() => {
-        connect();
-      }, 3000);
-    }
-    return () => {
-      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-    };
-  }, [state.connected, state.streaming, sessionId, connect]);
-
   // Cleanup on unmount
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
+      mountedRef.current = false;
       abortRef.current?.abort();
+      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
     };
   }, []);
 

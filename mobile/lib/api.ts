@@ -1,4 +1,4 @@
-import { getServerUrl, getAuthHeader, setServerUrl as persistServerUrl, setCredentials, clearAuth, setAuthType, setAuthValue } from "./storage";
+import { getServerUrl, getAuthHeader, setServerUrl as persistServerUrl, setCredentials } from "./storage";
 import type { AuthType } from "./storage";
 import type {
   HealthResponse,
@@ -67,12 +67,12 @@ function extractData<T>(response: { data?: T[] } | T[]): T[] {
 
 // ── Server URL / Credentials ──
 
-export function setServerUrl(url: string) {
-  persistServerUrl(url);
+export function setServerUrl(url: string): Promise<void> {
+  return persistServerUrl(url);
 }
 
-export function setServerCredentials(username: string, password: string) {
-  setCredentials(username, password);
+export function setServerCredentials(username: string, password: string): Promise<void> {
+  return setCredentials(username, password);
 }
 
 // ── Health ──

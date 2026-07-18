@@ -13,7 +13,9 @@ services:
       - OPENCODE_SERVER_USERNAME=${OPENCODE_SERVER_USERNAME:-}
       - OPENCODE_SERVER_PASSWORD=${OPENCODE_SERVER_PASSWORD:-}
     volumes:
-      # Mount a directory for projects to persist data
+      # Persist config
+      - opencode-config:/data/config/opencode
+      # Persist project data
       - opencode-data:/projects
     restart: unless-stopped
     healthcheck:
@@ -23,4 +25,5 @@ services:
       retries: 3
 
 volumes:
+  opencode-config:
   opencode-data:

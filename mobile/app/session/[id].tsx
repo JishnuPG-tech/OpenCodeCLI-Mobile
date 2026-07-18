@@ -19,7 +19,7 @@ export default function ChatScreen() {
   const insets = useSafeAreaInsets();
   const theme = themes[getTheme()];
   const [input, setInput] = useState("");
-  const flatListRef = useRef<FlatList>(null);
+  const flatListRef = useRef<FlatList<any>>(null);
 
   const { data: session } = useSession(id || "");
   const { data: serverMessages } = useMessages(id || "");
@@ -55,9 +55,11 @@ export default function ChatScreen() {
   }
 
   useEffect(() => {
-    connect();
-    return () => disconnect();
-  }, [id]);
+    if (id) {
+      connect();
+      return () => disconnect();
+    }
+  }, [id, connect, disconnect]);
 
   const handleSend = () => {
     if (!input.trim() || !id) return;

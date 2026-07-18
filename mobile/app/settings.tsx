@@ -51,15 +51,15 @@ export default function SettingsScreen() {
   });
 
   const testConnection = async () => {
-    persistUrl(serverInput);
+    await persistUrl(serverInput);
 
     // Save auth
     if (authType === "basic") {
-      setAuthValue(`${basicUser}:${basicPass}`);
+      await setAuthValue(`${basicUser}:${basicPass}`);
     } else {
-      setAuthValue(authValue);
+      await setAuthValue(authValue);
     }
-    setAuthType(authType);
+    await setAuthType(authType);
 
     try {
       const health = await getHealth();

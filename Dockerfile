@@ -16,12 +16,28 @@ RUN curl -fsSL "https://github.com/anomalyco/opencode/releases/download/v${OPENC
 # Create non-root user
 RUN useradd -m -s /bin/bash opencode
 
-# Working directory for projects
-RUN mkdir -p /projects/default && chown -R opencode:opencode /projects
+# Create config and data directories
+RUN mkdir -p /data/config/opencode /projects/default \
+    && chown -R opencode:opencode /data /projects
+
+# Copy default config
+COPY opencode.json /data/config/opencode/opencode.json
+RUN chown opencode:opencode /data/config/opencode/opencode.json
 
 WORKDIR /projects/default
 
 EXPOSE 4096
 
 # Default: check if git is initialized (in case of persistent volume mount) and serve
-CMD ["sh", "-c", "if [ ! -d .git ]; then git init && git config user.email 'opencode@local.com' && git config user.name 'OpenCode' && git commit --allow-empty -m 'Initial commit'; fi; exec opencode serve --port 4096 --hostname 0.0.0.0"]
+CMD ["sh", "-c", "\
+  mkdir -p /data/config/opencode && \
+  if [ ! -f /data/config/opencode/opencode.json ]; then \
+    echo '{\"$schema\":\"https://opencode.ai/config.json\",\"model\":\"anthropic/claude-sonnet-4-5\",\"server\":{\"port\":4096,\"hostname\":\"0.0.0.0\"}}' > /data/config/opencode/opencode.json; \
+  fi && \
+  if [ ! -d .git ]; then \
+    git init && \
+    git config user.email 'opencode@local.com' && \
+    git config user.name 'OpenCode' && \
+    git commit --allow-empty -m 'Initial commit'; \
+  fi && \
+  exec opencode serve --port 4096 --hostname 0.0.0.0"]
