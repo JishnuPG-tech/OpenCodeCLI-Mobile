@@ -23,5 +23,5 @@ WORKDIR /projects
 
 EXPOSE 4096
 
-# Default: pre-create a default project folder and serve on all interfaces
-CMD ["sh", "-c", "mkdir -p /projects/default && exec opencode serve --port 4096 --hostname 0.0.0.0"]
+# Default: pre-create default project folder, auto-clone GITHUB_REPO if set, and serve
+CMD ["sh", "-c", "mkdir -p /projects/default && if [ -n \"$GITHUB_REPO\" ] && [ ! -d /projects/default/.git ]; then echo 'Cloning GITHUB_REPO...'; git clone \"$GITHUB_REPO\" /projects/default || true; fi; exec opencode serve --port 4096 --hostname 0.0.0.0"]
