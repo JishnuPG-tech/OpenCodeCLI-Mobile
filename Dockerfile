@@ -6,7 +6,7 @@ ARG OPENCODE_VERSION=1.18.3
 RUN apk add --no-cache curl ca-certificates
 
 # Download opencode binary
-RUN curl -fsSL "https://github.com/anomalyco/opencode/releases/download/v${OPENCODE_VERSION}/opencode_${OPENCODE_VERSION}_linux_amd64.tar.gz" \
+RUN curl -fsSL "https://github.com/anomalyco/opencode/releases/download/v${OPENCODE_VERSION}/opencode-linux-x64.tar.gz" \
     | tar xz -C /usr/local/bin opencode
 
 # Create non-root user
