@@ -1,16 +1,19 @@
-FROM alpine:3.19
+FROM debian:bookworm-slim
 
 ARG OPENCODE_VERSION=1.18.3
 
 # Install dependencies
-RUN apk add --no-cache curl ca-certificates
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
 
 # Download opencode binary
 RUN curl -fsSL "https://github.com/anomalyco/opencode/releases/download/v${OPENCODE_VERSION}/opencode-linux-x64.tar.gz" \
-    | tar xz -C /usr/local/bin opencode
+    | tar -xz -C /usr/local/bin opencode
 
 # Create non-root user
-RUN adduser -D -s /bin/sh opencode
+RUN useradd -m -s /bin/bash opencode
 
 # Working directory for projects
 RUN mkdir -p /projects && chown opencode:opencode /projects
