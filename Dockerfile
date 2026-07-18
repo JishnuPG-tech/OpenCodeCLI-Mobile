@@ -23,5 +23,5 @@ WORKDIR /projects
 
 EXPOSE 4096
 
-# Default: serve on all interfaces (accessible from outside container)
-CMD ["opencode", "serve", "--port", "4096", "--hostname", "0.0.0.0"]
+# Default: pre-create a default project folder and serve on all interfaces
+CMD ["sh", "-c", "mkdir -p /projects/default && exec opencode serve --port 4096 --hostname 0.0.0.0"]
