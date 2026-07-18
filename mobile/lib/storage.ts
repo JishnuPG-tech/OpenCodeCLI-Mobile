@@ -1,7 +1,5 @@
-import { MMKV } from "react-native-mmkv";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ThemeName } from "../constants/types";
-
-const storage = new MMKV();
 
 export const storageKeys = {
   serverUrl: "opencode_server_url",
@@ -13,36 +11,66 @@ export const storageKeys = {
 
 export type AuthType = "none" | "basic" | "bearer" | "apikey";
 
+const cache: Record<string, string | null> = {};
+
+async function get(key: string): Promise<string | null> {
+  if (cache[key] !== undefined) return cache[key];
+  const val = await AsyncStorage.getItem(key);
+  cache[key] = val;
+  return val;
+}
+
+async function set(key: string, value: string): Promise<void> {
+  cache[key] = value;
+  await AsyncStorage.setItem(key, value);
+}
+
+async function del(key: string): Promise<void> {
+  cache[key] = null;
+  await AsyncStorage.removeItem(key);
+}
+
+function getSync(key: string): string | null {
+  if (cache[key] !== undefined) return cache[key];
+  return null;
+}
+
+// Preload all keys on module load
+const _loaded = (async () => {
+  const entries = await AsyncStorage.multiGet(Object.values(storageKeys));
+  for (const [k, v] of entries) {
+    cache[k] = v;
+  }
+})();
+
 // ── Server URL ──
 
 export function getServerUrl(): string {
-  return storage.getString(storageKeys.serverUrl) || "http://127.0.0.1:4096";
+  return getSync(storageKeys.serverUrl) || "http://127.0.0.1:4096";
 }
 
-export function setServerUrl(url: string): void {
-  storage.set(storageKeys.serverUrl, url);
+export async function setServerUrl(url: string): Promise<void> {
+  await set(storageKeys.serverUrl, url);
 }
 
 // ── Auth ──
 
 export function getAuthType(): AuthType {
-  return (storage.getString(storageKeys.authType) as AuthType) || "none";
+  return (getSync(storageKeys.authType) as AuthType) || "none";
 }
 
-export function setAuthType(type: AuthType): void {
-  storage.set(storageKeys.authType, type);
+export async function setAuthType(type: AuthType): Promise<void> {
+  await set(storageKeys.authType, type);
 }
 
-/** Get stored auth value (password for basic, token for bearer/apikey) */
 export function getAuthValue(): string {
-  return storage.getString(storageKeys.authValue) || "";
+  return getSync(storageKeys.authValue) || "";
 }
 
-export function setAuthValue(value: string): void {
-  storage.set(storageKeys.authValue, value);
+export async function setAuthValue(value: string): Promise<void> {
+  await set(storageKeys.authValue, value);
 }
 
-/** Get credentials for basic auth (username:password) */
 export function getCredentials(): { username: string; password: string } {
   const val = getAuthValue();
   if (getAuthType() === "basic" && val.includes(":")) {
@@ -52,18 +80,16 @@ export function getCredentials(): { username: string; password: string } {
   return { username: "", password: "" };
 }
 
-/** Set basic auth credentials */
-export function setCredentials(username: string, password: string): void {
-  setAuthType("basic");
-  setAuthValue(`${username}:${password}`);
+export async function setCredentials(username: string, password: string): Promise<void> {
+  await setAuthType("basic");
+  await setAuthValue(`${username}:${password}`);
 }
 
-export function clearAuth(): void {
-  storage.delete(storageKeys.authType);
-  storage.delete(storageKeys.authValue);
+export async function clearAuth(): Promise<void> {
+  await del(storageKeys.authType);
+  await del(storageKeys.authValue);
 }
 
-/** Build Authorization header value */
 export function getAuthHeader(): Record<string, string> {
   const type = getAuthType();
   const value = getAuthValue();
@@ -90,19 +116,19 @@ export function getAuthHeader(): Record<string, string> {
 // ── Theme ──
 
 export function getTheme(): ThemeName {
-  return (storage.getString(storageKeys.theme) as ThemeName) || "tokyo";
+  return (getSync(storageKeys.theme) as ThemeName) || "tokyo";
 }
 
-export function setTheme(theme: ThemeName): void {
-  storage.set(storageKeys.theme, theme);
+export async function setTheme(theme: ThemeName): Promise<void> {
+  await set(storageKeys.theme, theme);
 }
 
 // ── Last session ──
 
 export function getLastSessionId(): string | undefined {
-  return storage.getString(storageKeys.lastSessionId);
+  return getSync(storageKeys.lastSessionId) || undefined;
 }
 
-export function setLastSessionId(id: string): void {
-  storage.set(storageKeys.lastSessionId, id);
+export async function setLastSessionId(id: string): Promise<void> {
+  await set(storageKeys.lastSessionId, id);
 }
